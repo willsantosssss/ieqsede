@@ -1,0 +1,473 @@
+// @ts-nocheck
+import { ScrollView, Text, View, TouchableOpacity, RefreshControl, TextInput, Alert } from "react-native";
+import { ScreenContainer } from "@/components/screen-container";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useColors } from "@/hooks/use-colors";
+import { useState, useEffect } from "react";
+import { categoryLabels, categoryEmojis, type PrayerCategory, type PrayerRequest } from "@/lib/data/oracao";
+import { trpc } from "@/lib/trpc";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Haptics from "expo-haptics";
+import { Platform } from "react-native";
+import { formatarDataBR } from "@/lib/utils/date-br";
+
+
+export default function OracaoScreen() {
+  const colors = useColors();
+  const [selectedCategory, setSelectedCategory] = useState<PrayerCategory | "all">("all");
+  const [prayingFor, setPrayingFor] = useState<Set<string>>(new Set());
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [pedidos, setPedidos] = useState<PrayerRequest[]>([]);
+
+  const { data: pedidosData, isLoading, refetch, dataUpdatedAt } = trpc.oracao.list.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+    staleTime: 300000,
+  });
+
+  const createMutation = trpc.oracao.create.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const incrementCounterMutation = trpc.oracao.incrementarContador.useMutation({
+    onSuccess: () => {
+      // Atualizar os dados locais imediatamente
+      setPedidos(prevPedidos => 
+        prevPedidos.map(p => 
+          p.id === prayingFor.values().next().value?.toString() 
+            ? { ...p, prayingCount: (p.prayingCount || 0) + 1 }
+            : p
+        )
+      );
+      refetch();
+    },
+  });
+
+
+
+  useEffect(() => {
+    if (pedidosData) {
+      setPedidos(pedidosData.map((p: any) => ({
+        id: p.id.toString(),
+        title: p.nome,
+        description: p.descricao,
+        author: p.categoria,
+        category: 'espiritual' as PrayerCategory,
+        date: p.createdAt || new Date().toISOString(),
+        prayerCount: p.contadorOrando || 0,
+        prayingCount: p.contadorOrando || 0,
+        isAnswered: p.respondido || false,
+        testimony: p.testemunho || undefined,
+      })));
+    }
+  }, [pedidosData]);
+  
+  // Form state
+  const [newTitle, setNewTitle] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newCategory, setNewCategory] = useState<PrayerCategory>("espiritual");
+  const [newTestimony, setNewTestimony] = useState("");
+  const [showTestimonyForm, setShowTestimonyForm] = useState<string | null>(null);
+
+  const onRefresh = async () => {
+    await refetch();
+  };
+
+  const filteredRequests = selectedCategory === "all" 
+    ? pedidos 
+    : pedidos.filter(r => r.category === selectedCategory);
+
+  const sortedRequests = [...filteredRequests].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+
+  const togglePraying = async (id: string) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    const newPrayingFor = new Set(prayingFor);
+    const wasNotPraying = !prayingFor.has(id);
+    
+    if (prayingFor.has(id)) {
+      newPrayingFor.delete(id);
+    } else {
+      newPrayingFor.add(id);
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      
+      // Atualizar o contador na UI imediatamente
+      setPedidos(prevPedidos => 
+        prevPedidos.map(p => 
+          p.id === id 
+            ? { ...p, prayingCount: (p.prayingCount || 0) + 1 }
+            : p
+        )
+      );
+      
+      // Incrementar contador no banco
+      try {
+        await incrementCounterMutation.mutateAsync(parseInt(id));
+      } catch (error) {
+        void 0;
+        // Se falhar, desfazer a atualização local
+        setPedidos(prevPedidos => 
+          prevPedidos.map(p => 
+            p.id === id 
+              ? { ...p, prayingCount: Math.max(0, (p.prayingCount || 1) - 1) }
+              : p
+          )
+        );
+      }
+    }
+    
+    setPrayingFor(newPrayingFor);
+    
+    try {
+      await AsyncStorage.setItem(
+        "@oracao_praying_for",
+        JSON.stringify(Array.from(newPrayingFor))
+      );
+    } catch (error) {
+      void 0;
+    }
+  };
+
+  const handleAddPrayer = async () => {
+    if (!newTitle.trim() || !newDescription.trim()) {
+      Alert.alert("Atenção", "Por favor, preencha o título e a descrição do pedido.");
+      return;
+    }
+
+    if (Platform.OS !== "web") {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+
+    try {
+      await createMutation.mutateAsync({
+        nome: newTitle.trim(),
+        descricao: newDescription.trim(),
+        categoria: newCategory,
+      });
+    } catch (error) {
+      void 0;
+      Alert.alert("Erro", "Não foi possível enviar o pedido. Tente novamente.");
+      return;
+    }
+
+    Alert.alert(
+      "Pedido Enviado!",
+      "Seu pedido de oração foi compartilhado com a comunidade. Deus ouvirá nossas orações!",
+      [{ text: "Amém!" }]
+    );
+
+    setNewTitle("");
+    setNewDescription("");
+    setNewCategory("espiritual");
+    setShowAddForm(false);
+  };
+
+  const formatDate = (dateStr: string) => {
+    return formatarDataBR(dateStr);
+  };
+
+  if (showAddForm) {
+    return (
+      <ScreenContainer>
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1">
+              <Text className="text-3xl font-bold text-foreground">Novo Pedido</Text>
+              <Text className="text-sm text-muted mt-1">
+                Compartilhe seu pedido de oração
+              </Text>
+            </View>
+            <TouchableOpacity
+              className="w-10 h-10 items-center justify-center rounded-full bg-surface"
+              onPress={() => setShowAddForm(false)}
+            >
+              <Text className="text-xl">✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="gap-4">
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-foreground">Título do Pedido</Text>
+              <TextInput
+                className="bg-surface rounded-xl px-4 py-3 text-foreground border"
+                style={{ borderColor: colors.border }}
+                placeholder="Ex: Cura para minha família"
+                placeholderTextColor={colors.muted}
+                value={newTitle}
+                onChangeText={setNewTitle}
+              />
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-foreground">Categoria</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-2">
+                {Object.entries(categoryLabels).map(([key, label]) => (
+                  <TouchableOpacity
+                    key={key}
+                    className="px-4 py-2 rounded-full mr-2 flex-row items-center gap-2"
+                    style={{ 
+                      backgroundColor: newCategory === key ? colors.primary : colors.surface,
+                      borderWidth: 1,
+                      borderColor: newCategory === key ? colors.primary : colors.border,
+                    }}
+                    onPress={() => setNewCategory(key as PrayerCategory)}
+                  >
+                    <Text>{categoryEmojis[key as PrayerCategory]}</Text>
+                    <Text 
+                      className="font-semibold text-sm"
+                      style={{ color: newCategory === key ? "#FFFFFF" : colors.foreground }}
+                    >
+                      {label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-foreground">Descrição</Text>
+              <TextInput
+                className="bg-surface rounded-xl px-4 py-3 text-foreground border"
+                style={{ borderColor: colors.border, minHeight: 120, textAlignVertical: "top" }}
+                placeholder="Descreva seu pedido de oração..."
+                placeholderTextColor={colors.muted}
+                value={newDescription}
+                onChangeText={setNewDescription}
+                multiline
+                numberOfLines={5}
+              />
+            </View>
+
+            <TouchableOpacity
+              className="rounded-full py-4 items-center mt-4"
+              style={{ backgroundColor: colors.primary }}
+              onPress={handleAddPrayer}
+            >
+              <Text className="text-white font-bold text-base">Compartilhar Pedido</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
+
+  return (
+    <ScreenContainer>
+      <ScrollView 
+        contentContainerStyle={{ padding: 20, gap: 20 }}
+        refreshControl={
+          <RefreshControl refreshing={isLoading} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
+      >
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1">
+            <Text className="text-3xl font-bold text-foreground">Oração</Text>
+            <Text className="text-base text-muted">
+              Pedidos da comunidade
+            </Text>
+          </View>
+          <TouchableOpacity
+            className="rounded-full px-4 py-2 flex-row items-center gap-2"
+            style={{ backgroundColor: colors.primary }}
+            onPress={() => setShowAddForm(true)}
+          >
+            <IconSymbol name="plus.circle.fill" size={20} color="#FFFFFF" />
+            <Text className="text-white font-semibold text-sm">Adicionar</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Filtros */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="gap-2">
+          <TouchableOpacity
+            className="px-4 py-2 rounded-full mr-2"
+            style={{ 
+              backgroundColor: selectedCategory === "all" ? colors.primary : colors.surface,
+              borderWidth: 1,
+              borderColor: selectedCategory === "all" ? colors.primary : colors.border,
+            }}
+            onPress={() => setSelectedCategory("all")}
+          >
+            <Text 
+              className="font-semibold text-sm"
+              style={{ color: selectedCategory === "all" ? "#FFFFFF" : colors.foreground }}
+            >
+              Todos
+            </Text>
+          </TouchableOpacity>
+
+          {Object.entries(categoryLabels).map(([key, label]) => (
+            <TouchableOpacity
+              key={key}
+              className="px-4 py-2 rounded-full mr-2 flex-row items-center gap-2"
+              style={{ 
+                backgroundColor: selectedCategory === key ? colors.primary : colors.surface,
+                borderWidth: 1,
+                borderColor: selectedCategory === key ? colors.primary : colors.border,
+              }}
+              onPress={() => setSelectedCategory(key as PrayerCategory)}
+            >
+              <Text>{categoryEmojis[key as PrayerCategory]}</Text>
+              <Text 
+                className="font-semibold text-sm"
+                style={{ color: selectedCategory === key ? "#FFFFFF" : colors.foreground }}
+              >
+                {label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Lista de pedidos */}
+        <View className="gap-4">
+          {sortedRequests.map((request) => {
+            const isPraying = prayingFor.has(request.id);
+            
+            return (
+              <View
+                key={request.id}
+                className="bg-surface rounded-2xl p-5 gap-3 border"
+                style={{ 
+                  borderColor: request.isAnswered ? colors.success : colors.border,
+                  borderWidth: request.isAnswered ? 2 : 1,
+                }}
+              >
+                {request.isAnswered && (
+                  <View 
+                    className="px-3 py-1.5 rounded-full self-start"
+                    style={{ backgroundColor: `${colors.success}20` }}
+                  >
+                    <Text className="text-sm font-semibold" style={{ color: colors.success }}>
+                      ✓ Oração Respondida
+                    </Text>
+                  </View>
+                )}
+
+                <View className="flex-row items-start justify-between">
+                  <View className="flex-1 gap-1">
+                    <Text className="text-lg font-bold text-foreground">
+                      {request.title}
+                    </Text>
+                    <Text className="text-xs text-muted">
+                      {categoryEmojis[request.category]} {categoryLabels[request.category]} • {request.author} • {formatDate(request.date)}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text className="text-sm text-foreground leading-relaxed">
+                  {request.description}
+                </Text>
+
+                {request.isAnswered && (
+                  <View className="gap-2">
+                    {request.testimony && (
+                      <View className="p-3 rounded-xl" style={{ backgroundColor: `${colors.success}10` }}>
+                        <Text className="text-sm font-semibold text-foreground mb-1">Testemunho:</Text>
+                        <Text className="text-sm text-foreground italic">{request.testimony}</Text>
+                      </View>
+                    )}
+                    {!request.testimony && showTestimonyForm !== request.id && (
+                      <TouchableOpacity
+                        className="px-4 py-2 rounded-full items-center border"
+                        style={{ borderColor: colors.success }}
+                        onPress={() => setShowTestimonyForm(request.id)}
+                      >
+                        <Text className="text-sm font-semibold" style={{ color: colors.success }}>
+                          + Adicionar Testemunho
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                    {showTestimonyForm === request.id && (
+                      <View className="gap-2">
+                        <TextInput
+                          className="bg-surface rounded-xl px-4 py-3 text-foreground border"
+                          style={{ borderColor: colors.border, minHeight: 80, textAlignVertical: "top" }}
+                          placeholder="Compartilhe como Deus respondeu sua oracao..."
+                          placeholderTextColor={colors.muted}
+                          value={newTestimony}
+                          onChangeText={setNewTestimony}
+                          multiline
+                          numberOfLines={3}
+                        />
+                        <View className="flex-row gap-2">
+                          <TouchableOpacity
+                            className="flex-1 px-4 py-2 rounded-full items-center"
+                            style={{ backgroundColor: colors.primary }}
+                            onPress={async () => {
+                              if (newTestimony.trim()) {
+                                try {
+                                  await trpc.oracao.update.mutate({
+                                    id: parseInt(request.id),
+                                    data: { testemunho: newTestimony.trim() },
+                                  });
+                                  setNewTestimony("");
+                                  setShowTestimonyForm(null);
+                                  refetch();
+                                } catch (error) {
+                                  void 0;
+                                }
+                              }
+                            }}
+                          >
+                            <Text className="text-white font-semibold text-sm">Salvar</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            className="flex-1 px-4 py-2 rounded-full items-center border"
+                            style={{ borderColor: colors.border }}
+                            onPress={() => {
+                              setNewTestimony("");
+                              setShowTestimonyForm(null);
+                            }}
+                          >
+                            <Text className="text-foreground font-semibold text-sm">Cancelar</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                <View className="flex-row items-center justify-between mt-2">
+                  <Text className="text-sm text-muted">
+                    🙏 {request.prayingCount} pessoas orando
+                  </Text>
+                  
+                  <TouchableOpacity
+                    className="px-4 py-2 rounded-full flex-row items-center gap-2"
+                    style={{ backgroundColor: isPraying ? colors.success : colors.primary }}
+                    onPress={() => togglePraying(request.id)}
+                  >
+                    <IconSymbol 
+                      name={isPraying ? "checkmark.circle.fill" : "hands.sparkles.fill"} 
+                      size={16} 
+                      color="#FFFFFF" 
+                    />
+                    <Text className="text-white font-semibold text-sm">
+                      {isPraying ? "Orando" : "Orar"}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+
+        {sortedRequests.length === 0 && (
+          <View className="items-center py-10 gap-2">
+            <Text className="text-5xl">🙏</Text>
+            <Text className="text-base text-muted text-center">
+              Nenhum pedido encontrado nesta categoria
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+    </ScreenContainer>
+  );
+}
+
