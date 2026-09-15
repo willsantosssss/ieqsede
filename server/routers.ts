@@ -535,6 +535,7 @@ export const appRouter = router({
 
   // Inscrições em Eventos
   inscricoesEventos: router({
+    getByCelula: protectedProcedure.input(z.string().min(1)).query(({ input }) => db.getInscricoesEventosPorCelula(input)),
     list: publicProcedure.query(() => db.getInscricoesEventos()),
     getByEvento: publicProcedure.input(z.number()).query(({ input }) => db.getInscricoesEventosByEventoId(input)),
     create: publicProcedure
@@ -559,6 +560,7 @@ export const appRouter = router({
     delete: protectedProcedure.input(z.number()).mutation(({ input }) => db.deleteInscricaoEvento(input)),
   }),
   escolaCrescimento: router({
+    getByCelula: protectedProcedure.input(z.string().min(1)).query(({ input }) => db.getEscolaPorCelula(input)),
     list: publicProcedure.query(async () => {
       try {
         const result = await db.getInscricoesEscolaCrescimento();
@@ -722,4 +724,3 @@ export const appRouter = router({
   }),
 });
 export type AppRouter = typeof appRouter;
-

@@ -1,11 +1,12 @@
-// @ts-nocheck
+// Login and signup share the same validated session flow.
 import { useState } from "react";
 import { Alert, ScrollView, View, Text, TextInput, TouchableOpacity, ActivityIndicator } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { trpc } from "@/lib/trpc";
-import { setSessionToken, setUserInfo, getSessionToken } from "@/lib/_core/auth";
+import { trpc, createTRPCClient } from "@/lib/trpc";
+import { useQueryClient } from "@tanstack/react-query";
+import { setSessionToken, setUserInfo, removeSessionToken, clearUserInfo } from "@/lib/_core/auth";
 import { useColors } from "@/hooks/use-colors";
 
 
@@ -21,220 +22,41 @@ export default function LoginScreen() {
   const signupMutation = trpc.auth.signup.useMutation();
   const loginMutation = trpc.auth.login.useMutation();
 
-  const handleSignup = async () => {
-    if (!email || !password || !name) {
-      Alert.alert("Erro", "Preencha todos os campos");
-      return;
+  const queryClient = useQueryClient();
+  const handleSubmit = async () => {
+    if (!email.trim() || !password || (isSignup && !name.trim())) {
+      Alert.alert("Erro", "Preencha todos os campos."); return;
     }
-
-    if (password.length < 12) {
-      Alert.alert("Erro", "Senha deve ter pelo menos 12 caracteres");
-      return;
+    if (isSignup && (password.length < 12 || password.length > 128)) {
+      Alert.alert("Erro", "Use uma senha de 12 a 128 caracteres."); return;
     }
-
     setLoading(true);
     try {
-      void 0;
-      const signupResult = await signupMutation.mutateAsync({ email, password, name });
-      void 0;
-      
-      // Auto-login após signup
-      const loginResult = await loginMutation.mutateAsync({ email, password });
-      void 0;
-      
-      // Guardar token JWT usando setSessionToken (SecureStore no React Native, localStorage na web)
-      if (loginResult.sessionToken) {
-        try {
-          void 0;
-          await setSessionToken(loginResult.sessionToken);
-          void 0;
-          // Verificar se foi salvo
-          const savedToken = await getSessionToken();
-          void 0;
-        } catch (e) {
-          void 0;
-        }
-      } else {
-        void 0;
-      }
-      
-      // Salvar informações do usuário em cache para uso imediato na tela de completar cadastro
-      if (loginResult.openId && loginResult.email) {
-        try {
-          await setUserInfo({
-            id: loginResult.userId,
-            openId: loginResult.openId,
-            email: loginResult.email,
-            name: loginResult.name || null,
-            loginMethod: "manual",
-            lastSignedIn: new Date(),
-          });
-          void 0;
-        } catch (e) {
-          void 0;
-        }
-      }
-      
-      await AsyncStorage.setItem("@is_logged_in", "true");
-      await AsyncStorage.setItem("@cadastro_completo", "false");
-      await AsyncStorage.setItem("@user_email", email);
-      void 0;
-      router.replace("/completar-cadastro");
-    } catch (error: any) {
-      void 0;
-      void 0;
-      
-      // Se o email já existe, tentar fazer login automático
-      if (error.message && error.message.includes("Email already registered")) {
-        void 0;
-        try {
-          const loginResult = await loginMutation.mutateAsync({ email, password });
-          void 0;
-          
-          // Guardar token JWT
-          if (loginResult.sessionToken) {
-            try {
-              await setSessionToken(loginResult.sessionToken);
-              void 0;
-            } catch (e) {
-              void 0;
-            }
-          }
-          
-          // Salvar informações do usuário
-          if (loginResult.openId && loginResult.email) {
-            try {
-              await setUserInfo({
-                id: loginResult.userId,
-                openId: loginResult.openId,
-                email: loginResult.email,
-                name: loginResult.name || null,
-                loginMethod: "manual",
-                lastSignedIn: new Date(),
-              });
-              void 0;
-            } catch (e) {
-              void 0;
-            }
-          }
-          
-          await AsyncStorage.setItem("@is_logged_in", "true");
-          await AsyncStorage.setItem("@user_email", email);
-          
-          // Verificar se o usuário tem cadastro completo
-          try {
-            void 0;
-            const usuarioResponse = await trpc.usuarios.getByUserId.query();
-            if (usuarioResponse) {
-              await AsyncStorage.setItem("@cadastro_completo", "true");
-              router.replace("/(tabs)");
-            } else {
-              await AsyncStorage.setItem("@cadastro_completo", "false");
-              router.replace("/completar-cadastro");
-            }
-          } catch (e) {
-            void 0;
-            await AsyncStorage.setItem("@cadastro_completo", "false");
-            router.replace("/completar-cadastro");
-          }
-        } catch (loginError: any) {
-          void 0;
-          Alert.alert("Erro", loginError.message || "Email ou senha incorretos");
-        }
-      } else {
-        Alert.alert("Erro", error.message || "Erro ao criar conta");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Erro", "Preencha email e senha");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      void 0;
-      void 0;
-      const loginResult = await loginMutation.mutateAsync({ email, password });
-      void 0;
-      void 0;
-      void 0;
-      void 0;
-      void 0;
-      void 0;
-      
-      // Guardar token JWT usando setSessionToken (padroniza a chave de armazenamento)
-      if (loginResult.sessionToken) {
-        try {
-          void 0;
-          await setSessionToken(loginResult.sessionToken);
-          void 0;
-          // Verificar se foi salvo
-          const savedToken = await getSessionToken();
-          void 0;
-        } catch (e) {
-          void 0;
-        }
-      } else {
-        void 0;
-      }
-      
-      // Salvar informações do usuário em cache
-      if (loginResult.openId && loginResult.email) {
-        try {
-          await setUserInfo({
-            id: loginResult.userId,
-            openId: loginResult.openId,
-            email: loginResult.email,
-            name: loginResult.name || null,
-            loginMethod: "manual",
-            lastSignedIn: new Date(),
-          });
-          void 0;
-        } catch (e) {
-          void 0;
-        }
-      }
-      
-      await AsyncStorage.setItem("@is_logged_in", "true");
-      await AsyncStorage.setItem("@user_email", email);
-      
-      // Aguardar um pouco para garantir que o token está disponível no tRPC client
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Verificar se o usuário tem cadastro completo (registro em usuariosCadastrados)
-      // Se não tiver, redirecionar para completar-cadastro
-      try {
-        void 0;
-        const usuarioResponse = await trpc.usuarios.getByUserId.query();
-        void 0;
-        if (usuarioResponse) {
-          await AsyncStorage.setItem("@cadastro_completo", "true");
-          router.replace("/(tabs)");
-        } else {
-          await AsyncStorage.setItem("@cadastro_completo", "false");
-          router.replace("/completar-cadastro");
-        }
-      } catch (e) {
-        // Se houver erro ao verificar, assumir que precisa completar cadastro
-        void 0;
-        await AsyncStorage.setItem("@cadastro_completo", "false");
-        router.replace("/completar-cadastro");
-      }
-    } catch (error: any) {
-      void 0;
-      void 0;
-      void 0;
-      void 0;
-      void 0;
-      Alert.alert("Erro", error.message || "Email ou senha incorretos");
-    } finally {
-      setLoading(false);
-    }
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      const credentials = { email: email.trim().toLowerCase(), password };
+      const result = isSignup
+        ? await signupMutation.mutateAsync({ ...credentials, name: name.trim() })
+        : await loginMutation.mutateAsync(credentials);
+      await setSessionToken(result.sessionToken);
+      const api = createTRPCClient();
+      const current = await api.auth.me.query();
+      if (!current?.openId) throw new Error("Não foi possível validar a sessão.");
+      await setUserInfo({ ...current, openId: current.openId, lastSignedIn: new Date(current.lastSignedIn) });
+      const profile = await api.usuarios.getByUserId.query();
+      await AsyncStorage.multiSet([
+        ["@is_logged_in", "true"], ["@user_email", credentials.email],
+        ["@cadastro_completo", profile ? "true" : "false"],
+      ]);
+      router.replace(profile ? "/(tabs)" : "/completar-cadastro");
+    } catch {
+      await createTRPCClient().auth.logout.mutate().catch(() => {});
+      await removeSessionToken();
+      await clearUserInfo();
+      await AsyncStorage.multiRemove(["@is_logged_in", "@cadastro_completo", "@user_email"]);
+      queryClient.clear();
+      Alert.alert("Não foi possível entrar", "Confira seus dados e a conexão e tente novamente.");
+    } finally { setLoading(false); }
   };
 
   return (
@@ -294,7 +116,7 @@ export default function LoginScreen() {
 
           {/* Button */}
           <TouchableOpacity
-            onPress={isSignup ? handleSignup : handleLogin}
+            onPress={handleSubmit}
             disabled={loading}
             style={[
               {
@@ -333,4 +155,3 @@ export default function LoginScreen() {
     </ScreenContainer>
   );
 }
-

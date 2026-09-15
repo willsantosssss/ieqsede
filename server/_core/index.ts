@@ -12,10 +12,13 @@ import { sdk } from './sdk';
 import { COOKIE_NAME } from '../../shared/const';
 import { getSessionCookieOptions } from './cookies';
 import { databaseUrl } from '../security/database-config.mjs';
-import { getLiderByUserId } from '../db';
+import { getLiderByUserId, getSqlClient } from '../db';
 
 const app = express();
 app.disable('x-powered-by');
+// Trust only explicitly configured proxy IPs/subnets, never arbitrary forwarded headers.
+const trustedProxies = (process.env.TRUSTED_PROXIES || '').split(',').map((s: string) => s.trim()).filter(Boolean);
+if (trustedProxies.length) app.set('trust proxy', trustedProxies);
 const origins = new Set((process.env.CORS_ORIGINS || 'http://localhost:8081').split(',').map((s: string) => s.trim()));
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -37,7 +40,7 @@ app.use('/api', (req, res, next) => {
   const now = Date.now();
   for (const [key, item] of attempts) if (item.until <= now) attempts.delete(key);
   const auth = /auth\.(login|signup)/.test(req.path);
-  const key = (req.socket.remoteAddress || 'unknown') + (auth ? ':auth' : ':api');
+  const key = (req.ip || req.socket.remoteAddress || 'unknown') + (auth ? ':auth' : ':api');
   const item = attempts.get(key) || { count: 0, until: now + 60000 };
   if (++item.count > (auth ? 10 : 300) || (!attempts.has(key) && attempts.size >= 10000)) {
     res.setHeader('Retry-After', '60'); res.sendStatus(429); return;
@@ -46,6 +49,14 @@ app.use('/api', (req, res, next) => {
 });
 app.use(express.json({ limit: '256kb' }));
 app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get('/api/ready', async (_req, res) => {
+  try {
+    const pool = getSqlClient();
+    if (!pool) throw new Error('Database unavailable');
+    await pool.query({ sql: 'SELECT 1 FROM users LIMIT 1', timeout: 3000 });
+    res.json({ ok: true });
+  } catch { res.status(503).json({ ok: false }); }
+});
 app.get('/api/auth/me', async (req, res) => {
   try { const { password, ...user } = await sdk.authenticateRequest(req); res.json({ user }); }
   catch { res.status(401).json({ user: null }); }
@@ -55,7 +66,7 @@ app.post('/api/auth/logout', async (req, res) => {
   res.clearCookie(COOKIE_NAME, getSessionCookieOptions(req));
   res.json({ success: true });
 });
-const uploadsDir = path.resolve('uploads');
+const uploadsDir = path.resolve(process.env.UPLOADS_DIR || 'uploads');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024, files: 1, fields: 5 } });
 app.post('/api/upload', async (req, res, next) => {
   try {

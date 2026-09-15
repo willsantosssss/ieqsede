@@ -7,12 +7,14 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { BackButton } from '@/components/back-button';
 import { trpc } from '@/lib/trpc';
+import { useLeader } from '@/hooks/use-leader';
 import { obterSessaoLider, getAniversariantesDaCelula, type MembroCelula } from '@/lib/data/lideres';
 import { formatarDataBR, parseDataBR, obterMesAtual } from '@/lib/utils/date-br';
 
 
 export default function MembrosScreen() {
   const colors = useColors();
+  const activeLeader = useLeader();
   const router = useRouter();
   const [membros, setMembros] = useState<MembroCelula[]>([]);
   const [filtro, setFiltro] = useState<'todos' | 'aniversariantes' | 'eventos'>('todos');
@@ -20,7 +22,8 @@ export default function MembrosScreen() {
   const [carregando, setCarregando] = useState(true);
 
   // Buscar dados do banco de dados
-  const { data: membrosDB = [], isLoading: carregandoMembros } = trpc.usuarios.list.useQuery(undefined, {
+  const { data: membrosDB = [], isLoading: carregandoMembros } = trpc.usuarios.getMembrosPorCelula.useQuery(activeLeader?.celula ?? '', {
+    enabled: !!activeLeader,
     refetchOnWindowFocus: true,
     staleTime: 300000,
   });
@@ -59,8 +62,7 @@ export default function MembrosScreen() {
         return getAniversariantesDaCelula(membros);
 
       case 'eventos':
-        const nomesInscritos = new Set(inscricoesEventos.map(i => i.nomeCompleto.toLowerCase()));
-        return membros.filter(m => nomesInscritos.has(m.nome.toLowerCase()));
+        return membros.filter(m => m.inscritoEventos.length > 0);
       default:
         return membros;
     }
@@ -239,4 +241,3 @@ export default function MembrosScreen() {
     </ScreenContainer>
   );
 }
-

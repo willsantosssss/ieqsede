@@ -3,18 +3,21 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { BackButton } from '@/components/back-button';
 import { trpc } from '@/lib/trpc';
+import { useLeader } from '@/hooks/use-leader';
 import { obterSessaoLider } from '@/lib/data/lideres';
 import { useState, useEffect } from 'react';
 
 export default function EscolaCrescimentoViewScreen() {
   const colors = useColors();
+  const activeLeader = useLeader();
   const [lider, setLider] = useState<any>(null);
   const [inscritos, setInscritos] = useState<any[]>([]);
   const [filtroSelecionado, setFiltroSelecionado] = useState<string>('Todos');
   const [carregando, setCarregando] = useState(true);
 
   // Buscar dados do banco
-  const { data: inscritosDB = [] } = trpc.escolaCrescimento.list.useQuery(undefined, {
+  const { data: inscritosDB = [] } = trpc.escolaCrescimento.getByCelula.useQuery(activeLeader?.celula ?? '', {
+    enabled: !!activeLeader,
     refetchOnWindowFocus: true,
     staleTime: 300000,
   });
@@ -189,4 +192,3 @@ export default function EscolaCrescimentoViewScreen() {
     </ScreenContainer>
   );
 }
-

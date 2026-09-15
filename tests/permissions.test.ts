@@ -3,6 +3,7 @@ vi.mock('../server/db', () => ({
  getLiderByUserId: vi.fn(), deleteEvento: vi.fn(), deleteUserCompletely: vi.fn(),
  getAllUsuariosCadastrados: vi.fn(), updateAnotacaoDevocional: vi.fn(),
  deleteAnotacaoDevocional: vi.fn(), getRelatoriosByLiderId: vi.fn(),
+ getInscricoesEventosPorCelula: vi.fn(), getEscolaPorCelula: vi.fn(), getMembrosPorCelula: vi.fn(),
 }));
 import { appRouter } from '../server/routers';
 import * as db from '../server/db';
@@ -11,6 +12,25 @@ function caller(user: any=null) {
  return appRouter.createCaller({user, req:{headers:{}} as any, res:{clearCookie:vi.fn()} as any, sdk:{revokeRequest:vi.fn()} as any});
 }
 beforeEach(()=>vi.clearAllMocks());
+it('líder acessa somente membros e inscrições da própria célula', async () => {
+ vi.mocked(db.getLiderByUserId).mockResolvedValue({id:10,ativo:1,celula:'Teste'} as any);
+ for (const endpoint of [
+   caller(member).usuarios.getMembrosPorCelula,
+   caller(member).inscricoesEventos.getByCelula,
+   caller(member).escolaCrescimento.getByCelula,
+ ]) {
+   await expect(endpoint('Outra')).rejects.toMatchObject({code:'FORBIDDEN'});
+   await endpoint('Teste');
+ }
+ expect(db.getMembrosPorCelula).toHaveBeenCalledWith('Teste');
+ expect(db.getInscricoesEventosPorCelula).toHaveBeenCalledWith('Teste');
+ expect(db.getEscolaPorCelula).toHaveBeenCalledWith('Teste');
+});
+it('liderança desativada não pode consultar inscrições', async () => {
+ vi.mocked(db.getLiderByUserId).mockResolvedValue({id:10,ativo:0,celula:'Teste'} as any);
+ await expect(caller(member).inscricoesEventos.getByCelula('Teste')).rejects.toMatchObject({code:'FORBIDDEN'});
+ expect(db.getInscricoesEventosPorCelula).not.toHaveBeenCalled();
+});
 it('visitantes não podem excluir eventos',async()=>{
  await expect(caller().eventos.delete({id:1})).rejects.toMatchObject({code:'UNAUTHORIZED'});
  expect(db.deleteEvento).not.toHaveBeenCalled();

@@ -3,6 +3,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { BackButton } from '@/components/back-button';
 import { trpc } from '@/lib/trpc';
+import { useLeader } from '@/hooks/use-leader';
 import { obterSessaoLider } from '@/lib/data/lideres';
 import { useState, useEffect } from 'react';
 
@@ -26,6 +27,7 @@ interface Inscricao {
 
 export default function EventosViewScreen() {
   const colors = useColors();
+  const activeLeader = useLeader();
   const [lider, setLider] = useState<any>(null);
   const [inscricoes, setInscricoes] = useState<Inscricao[]>([]);
   const [eventos, setEventos] = useState<Evento[]>([]);
@@ -33,7 +35,8 @@ export default function EventosViewScreen() {
   const [eventoSelecionado, setEventoSelecionado] = useState<number | null>(null);
 
   // Buscar inscrições em eventos
-  const { data: inscricoesDB = [] } = trpc.inscricoesEventos.list.useQuery(undefined, {
+  const { data: inscricoesDB = [] } = trpc.inscricoesEventos.getByCelula.useQuery(activeLeader?.celula ?? '', {
+    enabled: !!activeLeader,
     refetchOnWindowFocus: true,
     staleTime: 300000,
   });
@@ -300,4 +303,3 @@ export default function EventosViewScreen() {
     </ScreenContainer>
   );
 }
-

@@ -892,6 +892,25 @@ export async function getMembrosPorCelula(celula: string) {
   }
 }
 
+export async function getInscricoesEventosPorCelula(celula: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select({
+    id: inscricoesEventos.id, nome: inscricoesEventos.nome,
+    celula: inscricoesEventos.celula, eventoId: inscricoesEventos.eventoId,
+  }).from(inscricoesEventos).where(eq(inscricoesEventos.celula, celula));
+}
+
+export async function getEscolaPorCelula(celula: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db.select({
+    id: inscricoesEscolaCrescimento.id, nome: inscricoesEscolaCrescimento.nome,
+    celula: inscricoesEscolaCrescimento.celula, curso: inscricoesEscolaCrescimento.curso,
+    status: inscricoesEscolaCrescimento.status,
+  }).from(inscricoesEscolaCrescimento).where(eq(inscricoesEscolaCrescimento.celula, celula));
+}
+
 // ==================== ORAÇÃO - INCREMENTAR CONTADOR ====================
 
 export async function incrementarContadorOracao(pedidoId: number) {
@@ -1280,4 +1299,3 @@ export async function deleteRecado(id: number) {
     throw new Error(`Erro ao deletar recado: ${error.message}`);
   }
 }
-

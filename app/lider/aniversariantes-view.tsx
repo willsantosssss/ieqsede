@@ -4,18 +4,21 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { BackButton } from '@/components/back-button';
 import { trpc } from '@/lib/trpc';
+import { useLeader } from '@/hooks/use-leader';
 import { obterSessaoLider } from '@/lib/data/lideres';
 import { useState, useEffect } from 'react';
 import { parseDataBR, obterMesAtual } from '@/lib/utils/date-br';
 
 export default function AniversariantesViewScreen() {
   const colors = useColors();
+  const activeLeader = useLeader();
   const [lider, setLider] = useState<any>(null);
   const [aniversariantes, setAniversariantes] = useState<any[]>([]);
   const [carregando, setCarregando] = useState(true);
 
   // Buscar dados do banco
-  const { data: membrosDB = [] } = trpc.usuarios.list.useQuery(undefined, {
+  const { data: membrosDB = [] } = trpc.usuarios.getMembrosPorCelula.useQuery(activeLeader?.celula ?? '', {
+    enabled: !!activeLeader,
     refetchOnWindowFocus: true,
     staleTime: 300000,
   });
@@ -153,4 +156,3 @@ export default function AniversariantesViewScreen() {
     </ScreenContainer>
   );
 }
-

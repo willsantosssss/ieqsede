@@ -46,11 +46,12 @@ function RootLayoutContent() {
   const checkLoginStatus = async () => {
     try {
       void 0;
-      const loggedIn = await AsyncStorage.getItem("@is_logged_in");
-      const cadastroCompleto = await AsyncStorage.getItem("@cadastro_completo");
+      const api = createTRPCClient();
+      const user = await api.auth.me.query();
+      const profile = user ? await api.usuarios.getByUserId.query() : null;
       void 0;
-      setIsLoggedIn(loggedIn === "true");
-      setNeedsCadastro(loggedIn === "true" && cadastroCompleto !== "true");
+      setIsLoggedIn(!!user);
+      setNeedsCadastro(!!user && !profile);
     } catch (error) {
       void 0;
       setIsLoggedIn(false);
@@ -199,4 +200,3 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
-

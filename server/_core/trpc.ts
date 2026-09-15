@@ -20,7 +20,7 @@ const guarded = t.procedure.use(async ({ ctx, path, type, getRawInput, next }) =
       const requestedCell = typeof input === 'object' ? input?.celula : input;
       if (path === 'relatorios.create' && requestedId === leader.id && requestedCell === leader.celula) return next();
       if (['relatorios.getByLiderId', 'relatorios.getByLiderIdWithFilters'].includes(path) && requestedId === leader.id) return next();
-      if (['relatorios.getByCelula', 'usuarios.getMembrosPorCelula'].includes(path) && requestedCell === leader.celula) return next();
+      if (['relatorios.getByCelula', 'usuarios.getMembrosPorCelula', 'inscricoesEventos.getByCelula', 'escolaCrescimento.getByCelula'].includes(path) && requestedCell === leader.celula) return next();
     }
   }
   throw new TRPCError({ code: 'FORBIDDEN' });

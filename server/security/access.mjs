@@ -6,6 +6,6 @@ export function accessLevel(path, type) {
   if ((type === 'query' ? publicReads : publicWrites).has(path)) return 'public';
   if ((type === 'query' ? memberReads : memberWrites).has(path)) return 'member';
   if (path === 'lideres.getByUserId') return 'self';
-  if (['relatorios.getByLiderId', 'relatorios.getByLiderIdWithFilters', 'relatorios.getByCelula', 'relatorios.create', 'usuarios.getMembrosPorCelula', 'anexos.list', 'anexos.getById'].includes(path)) return 'leader';
+  if (['relatorios.getByLiderId', 'relatorios.getByLiderIdWithFilters', 'relatorios.getByCelula', 'relatorios.create', 'usuarios.getMembrosPorCelula', 'inscricoesEventos.getByCelula', 'escolaCrescimento.getByCelula', 'anexos.list', 'anexos.getById'].includes(path)) return 'leader';
   return 'admin';
 }

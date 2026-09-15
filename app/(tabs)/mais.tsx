@@ -1,5 +1,5 @@
 import { ScrollView, Text, View, TouchableOpacity, Alert, Linking, Platform, Modal } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/hooks/use-auth";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -109,7 +109,7 @@ export default function MaisScreen() {
     );
   };
 
-  const logoutMutation = trpc.auth.logout.useMutation();
+  const { logout } = useAuth({ autoFetch: false });
 
   const handleLogout = () => {
     if (Platform.OS !== "web") {
@@ -125,22 +125,14 @@ export default function MaisScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              // Chamar endpoint de logout para invalidar sessão
-              await logoutMutation.mutateAsync();
-              
-              // Limpar TODOS os dados de autenticação
-              const keys = await AsyncStorage.getAllKeys();
-              const authKeys = keys.filter(key => 
-                key.startsWith('@') && 
-                (key.includes('logged') || key.includes('cadastro') || key.includes('user') || key.includes('auth'))
-              );
-              await AsyncStorage.multiRemove(authKeys);
+              await logout();
               
               // Redirecionar para login
               router.replace("/login" as any);
             } catch (error) {
               void 0;
-              Alert.alert("Erro", "Erro ao fazer logout. Tente novamente.");
+              router.replace("/login" as any);
+              Alert.alert("Sessão encerrada neste aparelho", "Não foi possível confirmar a revogação no servidor. Confira sua conexão.");
             }
           },
         },
@@ -515,4 +507,3 @@ export default function MaisScreen() {
     </ScreenContainer>
   );
 }
-
