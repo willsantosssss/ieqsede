@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createTRPCClient } from '@/lib/trpc';
 
 export interface InscricaoEvento {
   id: string;
@@ -22,56 +22,32 @@ export function eventoPermiteInscricao(categoria: string): boolean {
 
 // ==================== LEITURA ====================
 
+function adapt(row: any): InscricaoEvento {
+  return { id: String(row.id), eventoId: String(row.eventoId), eventoTitulo: row.eventoTitulo || '',
+    eventoData: row.eventoData || '', nomeCompleto: row.nome, celula: row.celula || '',
+    telefone: row.telefone || '', createdAt: String(row.createdAt || '') };
+}
 export async function getInscricoesEventos(): Promise<InscricaoEvento[]> {
-  try {
-    const data = await AsyncStorage.getItem(INSCRICOES_KEY);
-    return data ? JSON.parse(data) : [];
-  } catch {
-    return [];
-  }
+  return (await createTRPCClient().inscricoesEventos.list.query()).map(adapt);
 }
-
-export async function getInscricoesPorEvento(eventoId: string): Promise<InscricaoEvento[]> {
-  const todas = await getInscricoesEventos();
-  return todas.filter(i => i.eventoId === eventoId);
+export async function getInscricoesPorEvento(eventoId: string) {
+  return (await createTRPCClient().inscricoesEventos.getByEvento.query(Number(eventoId))).map(adapt);
 }
-
-export async function getInscricoesPorCelula(celulaNome: string): Promise<InscricaoEvento[]> {
-  const todas = await getInscricoesEventos();
-  return todas.filter(i => i.celula === celulaNome);
+export async function getInscricoesPorCelula(celula: string) {
+  return (await createTRPCClient().inscricoesEventos.getByCelula.query(celula)).map(adapt);
 }
-
-export async function getInscricoesPorEventoECelula(eventoId: string, celulaNome: string): Promise<InscricaoEvento[]> {
-  const todas = await getInscricoesEventos();
-  return todas.filter(i => i.eventoId === eventoId && i.celula === celulaNome);
+export async function getInscricoesPorEventoECelula(eventoId: string, celula: string) {
+  return (await getInscricoesPorCelula(celula)).filter(item => item.eventoId === eventoId);
 }
-
-export async function verificarInscricao(eventoId: string, nomeCompleto: string): Promise<boolean> {
-  const todas = await getInscricoesEventos();
-  return todas.some(i => i.eventoId === eventoId && i.nomeCompleto.toLowerCase() === nomeCompleto.toLowerCase());
+export async function verificarInscricao(eventoId: string, _nomeCompleto: string) {
+  return (await createTRPCClient().inscricoesEventos.minhas.query()).some(item => item.eventoId === Number(eventoId));
 }
-
-// ==================== CRIAÇÃO ====================
-
 export async function criarInscricao(dados: Omit<InscricaoEvento, 'id' | 'createdAt'>): Promise<InscricaoEvento> {
-  const todas = await getInscricoesEventos();
-  const nova: InscricaoEvento = {
-    ...dados,
-    id: Date.now().toString(),
-    createdAt: new Date().toISOString(),
-  };
-  todas.push(nova);
-  await AsyncStorage.setItem(INSCRICOES_KEY, JSON.stringify(todas));
-  return nova;
+  return adapt(await createTRPCClient().inscricoesEventos.create.mutate({eventoId: Number(dados.eventoId),
+    nome: dados.nomeCompleto, telefone: dados.telefone, celula: dados.celula}));
 }
-
-// ==================== REMOÇÃO ====================
-
 export async function removerInscricao(id: string): Promise<boolean> {
-  const todas = await getInscricoesEventos();
-  const filtradas = todas.filter(i => i.id !== id);
-  if (filtradas.length === todas.length) return false;
-  await AsyncStorage.setItem(INSCRICOES_KEY, JSON.stringify(filtradas));
+  await createTRPCClient().inscricoesEventos.delete.mutate(Number(id));
   return true;
 }
 

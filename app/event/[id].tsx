@@ -4,13 +4,13 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { useLocalSearchParams, router } from "expo-router";
 import { categoryLabels, categoryColors, type Event } from "@/lib/data/events";
-import { eventoPermiteInscricao, criarInscricao, verificarInscricao } from "@/lib/data/inscricoes-eventos";
+import { eventoPermiteInscricao } from "@/lib/data/inscricoes-eventos";
 import * as Haptics from "expo-haptics";
 import { Platform, FlatList, ScrollView, View, Text, TouchableOpacity, TextInput, Alert, Linking, Modal } from "react-native";
 import { useState, useEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useCelulas, type Celula } from "@/lib/data/celulas";
-import { trpc } from "@/lib/trpc";
+import { trpc, createTRPCClient } from "@/lib/trpc";
 import { formatarDataCompletaBR } from "@/lib/utils/date-br";
 
 export default function EventDetailScreen() {
@@ -67,22 +67,12 @@ export default function EventDetailScreen() {
 
   const carregarDadosUsuario = async () => {
     try {
-      const dadosUsuarios = await AsyncStorage.getItem("@usuarios_login");
-      if (dadosUsuarios) {
-        const lista = JSON.parse(dadosUsuarios);
-        if (lista.length > 0) {
-          const ultimo = lista[lista.length - 1];
-          setNome(ultimo.nome || "");
-          setCelula(ultimo.celula || "");
-          setTelefone(ultimo.telefone || "");
-          setUserId(ultimo.userId || null);
-          // Verificar se já está inscrito
-          if (typeof id === 'string' && ultimo.nome) {
-            const inscrito = await verificarInscricao(id, ultimo.nome);
-            setJaInscrito(inscrito);
-          }
-        }
-      }
+      const api = createTRPCClient();
+      const profile = await api.usuarios.getByUserId.query();
+      if (profile) { setNome(profile.nome); setCelula(profile.celula || ''); }
+      const registrations = await api.inscricoesEventos.minhas.query();
+      setJaInscrito(registrations.some(item => item.eventoId === Number(id)));
+
     } catch {}
   };
 
@@ -143,15 +133,8 @@ export default function EventDetailScreen() {
         userId: userId || undefined,
       });
 
-      // Também salvar no AsyncStorage para compatibilidade com relatórios locais
-      await criarInscricao({
-        eventoId: event.id,
-        eventoTitulo: event.title,
-        eventoData: event.date,
-        nomeCompleto: nome.trim(),
-        celula: celula.trim(),
-        telefone: telefone.trim(),
-      });
+
+
 
       if (Platform.OS !== "web") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -17,7 +17,7 @@ import {
 import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
-import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
+import { subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { inicializarNotificacoes } from "@/lib/notifications/devocional-notificacao";
 
@@ -36,7 +36,7 @@ function RootLayoutContent() {
   const [needsCadastro, setNeedsCadastro] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialize Manus runtime for cookie injection from parent container
+  // Validate the current session with the isolated API.
   useEffect(() => {
 
     checkLoginStatus();

@@ -96,6 +96,13 @@ app.get('/api/files/:filename', async (req, res) => {
   });
 });
 app.use('/api/trpc', createExpressMiddleware({ router: appRouter, createContext, allowBatching: false }));
+// Serve the exported web app with the API on the same origin for HttpOnly cookies.
+const webRoot = path.resolve('dist/app');
+app.use(express.static(webRoot));
+app.get('/{*route}', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(webRoot, 'index.html'), error => { if (error) next(error); });
+});
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   res.status(error instanceof multer.MulterError ? 400 : 500).json({ error: 'Não foi possível concluir a operação.' });
 });

@@ -4,7 +4,7 @@ import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
 import { getMembrosDaCelula, type MembroCelula } from '@/lib/data/lideres';
 import { getCelulas, type Celula } from '@/lib/data/celulas';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createTRPCClient } from '@/lib/trpc';
 
 export default function AniversariantesGerenciarScreen() {
   const colors = useColors();
@@ -22,16 +22,9 @@ export default function AniversariantesGerenciarScreen() {
   const carregarDados = async () => {
     try {
       setCarregando(true);
-      const todasCelulas = await getCelulas();
-      setCelulas(todasCelulas);
+      const users = await createTRPCClient().usuarios.list.query();
+      setMembros(users.map((u: any) => ({ ...u, userId: u.userId, inscritoBatismo: false, inscritoEventos: [] })));
 
-      // Carregar todos os membros de todas as células
-      let todosMembros: MembroCelula[] = [];
-      for (const celula of todasCelulas) {
-        const membroscelula = await getMembrosDaCelula(celula.name);
-        todosMembros = [...todosMembros, ...membroscelula];
-      }
-      setMembros(todosMembros);
     } catch (error) {
       void 0;
       Alert.alert('Erro', 'Não foi possível carregar os dados');
@@ -55,8 +48,7 @@ export default function AniversariantesGerenciarScreen() {
 
     try {
       const membroAtualizado = { ...membro, dataNascimento };
-      const chave = `@membro_${membro.nome}_${membro.celula}`;
-      await AsyncStorage.setItem(chave, JSON.stringify(membroAtualizado));
+      await createTRPCClient().usuarios.update.mutate({id: membro.userId!, data: {dataNascimento}});
 
       // Atualizar lista local
       setMembros(membros.map(m => m.nome === membro.nome && m.celula === membro.celula ? membroAtualizado : m));

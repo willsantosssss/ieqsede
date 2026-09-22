@@ -22,6 +22,7 @@ export interface RelatorioCelula {
 }
 
 export interface MembroCelula {
+  userId?: number;
   nome: string;
   dataNascimento: string;
   celula: string;
@@ -81,36 +82,9 @@ export async function removerRelatorio(id: string): Promise<void> {
 // ==================== MEMBROS DA CÉLULA ====================
 
 export async function getMembrosDaCelula(celulaNome: string): Promise<MembroCelula[]> {
-  try {
-    // Buscar todos os usuários cadastrados
-    const usersData = await AsyncStorage.getItem('@registered_users');
-    const users = usersData ? JSON.parse(usersData) : [];
-    
-    // Filtrar membros da célula
-    const membros = users.filter((u: any) => u.celula === celulaNome);
-    
-    // Buscar inscrições de batismo
-    const batismoData = await AsyncStorage.getItem('@batismo_inscricoes');
-    const batismos = batismoData ? JSON.parse(batismoData) : [];
-    
-    // Buscar inscrições de eventos
-    const eventosData = await AsyncStorage.getItem('@evento_inscricoes');
-    const eventos = eventosData ? JSON.parse(eventosData) : [];
-    
-    return membros.map((m: any) => ({
-      nome: m.nome || m.name || 'Sem nome',
-      dataNascimento: m.dataNascimento || m.birthDate || '',
-      celula: m.celula || celulaNome,
-      inscritoBatismo: batismos.some((b: any) => 
-        b.nome === (m.nome || m.name) || b.nomeCompleto === (m.nome || m.name)
-      ),
-      inscritoEventos: eventos
-        .filter((e: any) => e.nome === (m.nome || m.name) || e.nomeCompleto === (m.nome || m.name))
-        .map((e: any) => e.evento || e.eventoNome || 'Evento'),
-    }));
-  } catch {
-    return [];
-  }
+  const rows = await createTRPCClient().usuarios.getMembrosPorCelula.query(celulaNome);
+  return rows.map(row => ({ userId: row.userId ?? undefined, nome: row.nome, dataNascimento: row.dataNascimento || '',
+    celula: row.celula || '', inscritoBatismo: false, inscritoEventos: [] }));
 }
 
 // ==================== ANIVERSARIANTES DA CÉLULA ====================
@@ -172,4 +146,3 @@ export async function getEstatisticasCelula(celulaNome: string): Promise<{
     mediaVisitantes,
   };
 }
-

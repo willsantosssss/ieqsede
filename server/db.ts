@@ -746,6 +746,12 @@ export async function getInscricoesEventos() {
   });
 }
 
+export async function getMinhasInscricoesEventos(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error('Database not available');
+  return db.select().from(inscricoesEventos).where(eq(inscricoesEventos.userId, userId));
+}
+
 export async function getInscricoesEventosByEventoId(eventoId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -840,10 +846,12 @@ export async function getAniversariantesMes(mes: number) {
   const db = await getDb();
   if (!db) return [];
   const result = await db.select().from(usuariosCadastrados);
-  return result.filter((u) => {
-    if (!u.dataNascimento) return false;
-    const [, month] = u.dataNascimento.split('-');
-    return parseInt(month) === mes;
+  return result.flatMap((u) => {
+    if (!u.dataNascimento) return [];
+    const parts = u.dataNascimento.split(/[-/]/).map(Number);
+    const month = parts[1];
+    const day = u.dataNascimento.includes('-') ? parts[2] : parts[0];
+    return month === mes ? [{ nome: u.nome, celula: u.celula, dia: day, mes: month }] : [];
   });
 }
 

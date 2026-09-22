@@ -14,8 +14,8 @@ export type User = {
 export async function getSessionToken(): Promise<string | null> {
   try {
     if (Platform.OS === "web") {
-      const token = window.localStorage.getItem(SESSION_TOKEN_KEY);
-      return token;
+      window.localStorage.removeItem(SESSION_TOKEN_KEY);
+      return null; // Web authentication uses the HttpOnly session cookie.
     }
 
     const token = await SecureStore.getItemAsync(SESSION_TOKEN_KEY);
@@ -28,9 +28,9 @@ export async function getSessionToken(): Promise<string | null> {
 
 export async function setSessionToken(token: string): Promise<void> {
   try {
-    // Web platform uses localStorage for JWT token
+    // Web session is held only in the HttpOnly cookie
     if (Platform.OS === "web") {
-      window.localStorage.setItem(SESSION_TOKEN_KEY, token);
+      window.localStorage.removeItem(SESSION_TOKEN_KEY);
       return;
     }
 
@@ -44,7 +44,7 @@ export async function setSessionToken(token: string): Promise<void> {
 
 export async function removeSessionToken(): Promise<void> {
   try {
-    // Web platform uses localStorage for JWT token
+    // Web session is held only in the HttpOnly cookie
     if (Platform.OS === "web") {
       window.localStorage.removeItem(SESSION_TOKEN_KEY);
       return;
@@ -62,7 +62,8 @@ export async function getUserInfo(): Promise<User | null> {
     let info: string | null = null;
     if (Platform.OS === "web") {
       // Use localStorage for web
-      info = window.localStorage.getItem(USER_INFO_KEY);
+      window.localStorage.removeItem(USER_INFO_KEY);
+      return null;
     } else {
       // Use SecureStore for native
       info = await SecureStore.getItemAsync(USER_INFO_KEY);
@@ -83,7 +84,7 @@ export async function setUserInfo(user: User): Promise<void> {
   try {
     if (Platform.OS === "web") {
       // Use localStorage for web
-      window.localStorage.setItem(USER_INFO_KEY, JSON.stringify(user));
+      window.localStorage.removeItem(USER_INFO_KEY);
       return;
     }
 

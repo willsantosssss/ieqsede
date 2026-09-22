@@ -8,19 +8,6 @@ import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { parseDataBR } from "@/lib/utils/date-br";
 
-// Helper para parsear datas em ambos formatos (YYYY-MM-DD ou DD/MM/YYYY)
-const parseDateString = (dateStr: string) => {
-  if (dateStr.includes("-")) {
-    // Formato YYYY-MM-DD (do banco)
-    const [year, month, day] = dateStr.split("-").map(Number);
-    return { day, month, year };
-  } else {
-    // Formato DD/MM/YYYY (compatibilidade)
-    const [day, month, year] = dateStr.split("/").map(Number);
-    return { day, month, year };
-  }
-};
-
 export default function AniversariantesScreen() {
   const colors = useColors();
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1);
@@ -30,9 +17,9 @@ export default function AniversariantesScreen() {
   });
 
   const stats = useMemo(() => {
-    const aniversariantesDoMes = aniversariantes.sort((a, b) => {
-      const dayA = parseDateString(a.dataNascimento).day;
-      const dayB = parseDateString(b.dataNascimento).day;
+    const aniversariantesDoMes = [...aniversariantes].sort((a, b) => {
+      const dayA = a.dia;
+      const dayB = b.dia;
       return dayA - dayB;
     });
 
@@ -42,23 +29,8 @@ export default function AniversariantesScreen() {
     };
   }, [aniversariantes]);
 
-  const getAge = (birthDate: string) => {
-    const { day, month, year } = parseDateString(birthDate);
-    const today = new Date();
-    let age = today.getFullYear() - year;
-    
-    const birthMonth = month - 1;
-    if (today.getMonth() < birthMonth || 
-        (today.getMonth() === birthMonth && today.getDate() < day)) {
-      age--;
-    }
-    
-    return age;
-  };
-
-  const getDayOfWeek = (birthDate: string) => {
+  const getDayOfWeek = (day: number, month: number) => {
     try {
-      const { day, month } = parseDateString(birthDate);
       // Usar o ano atual (2026) para calcular o dia da semana do mês corrente
       const currentYear = new Date().getFullYear();
       const date = new Date(Date.UTC(currentYear, month - 1, day));
@@ -69,10 +41,6 @@ export default function AniversariantesScreen() {
     }
   };
 
-  const formatDate = (birthDate: string) => {
-    const { day, month } = parseDateString(birthDate);
-    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
-  };
 
   if (isLoading) {
     return (
@@ -151,10 +119,10 @@ export default function AniversariantesScreen() {
                       </Text>
                     </View>
                     <Text className="text-sm text-muted">
-                      {formatDate(person.dataNascimento)} • {getAge(person.dataNascimento)} anos
+                      {String(person.dia).padStart(2, '0')}/{String(person.mes).padStart(2, '0')}
                     </Text>
                     <Text className="text-sm text-muted">
-                      {getDayOfWeek(person.dataNascimento)}
+                      {getDayOfWeek(person.dia, person.mes)}
                     </Text>
                   </View>
                   <View 

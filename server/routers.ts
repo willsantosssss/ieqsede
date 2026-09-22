@@ -181,7 +181,7 @@ export const appRouter = router({
     list: publicProcedure.query(() => db.getAllUsuariosCadastrados()),
     getByUserId: protectedProcedure.query(({ ctx }) => db.getUsuarioCadastrado(ctx.user.id)),
     getAniversariantes: publicProcedure
-      .input(z.number())
+      .input(z.number().int().min(1).max(12))
       .query(({ input }) => db.getAniversariantesMes(input)),
     getMembrosPorCelula: publicProcedure
       .input(z.string())
@@ -535,6 +535,7 @@ export const appRouter = router({
 
   // Inscrições em Eventos
   inscricoesEventos: router({
+    minhas: protectedProcedure.query(({ ctx }) => db.getMinhasInscricoesEventos(ctx.user.id)),
     getByCelula: protectedProcedure.input(z.string().min(1)).query(({ input }) => db.getInscricoesEventosPorCelula(input)),
     list: publicProcedure.query(() => db.getInscricoesEventos()),
     getByEvento: publicProcedure.input(z.number()).query(({ input }) => db.getInscricoesEventosByEventoId(input)),

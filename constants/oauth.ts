@@ -7,7 +7,9 @@ export const OAUTH_PORTAL_URL = '';
 export const OAUTH_SERVER_URL = '';
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:3000';
 export function getApiBaseUrl() {
- const value=API_BASE_URL.replace(/\/$/,'');
+ const browserOrigin = typeof window !== 'undefined' ? window.location?.origin : undefined;
+ const fallback = browserOrigin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:|$)/.test(browserOrigin) ? browserOrigin : 'http://localhost:3000';
+ const value=(process.env.EXPO_PUBLIC_API_BASE_URL || fallback).replace(/\/$/,'');
  const url=new URL(value);
  if(url.protocol!=='https:' && !['localhost','127.0.0.1'].includes(url.hostname)) throw new Error('A API remota deve usar HTTPS.');
  return value;

@@ -13,31 +13,8 @@ export async function apiCall<T>(endpoint: string, options: RequestInit = {}): P
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  // Determine the auth method:
-  // - Native platform: use stored session token as Bearer auth
-  // - Web (including iframe): use cookie-based auth (browser handles automatically)
-  //   Cookie is set on backend domain via POST /api/auth/session after receiving token via postMessage
-  if (Platform.OS !== "web") {
-    const sessionToken = await Auth.getSessionToken();
-    void 0;
-    if (sessionToken) {
-      headers["Authorization"] = `Bearer ${sessionToken}`;
-      void 0;
-    }
-  } else {
-    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
-      try {
-        const token = window.localStorage.getItem(SESSION_TOKEN_KEY);
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-          void 0;
-        }
-      } catch (e) {
-        void 0;
-      }
-    }
-    void 0;
-  }
+  const sessionToken = await Auth.getSessionToken();
+  if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
 
   const baseUrl = getApiBaseUrl();
   // Ensure no double slashes between baseUrl and endpoint
