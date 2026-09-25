@@ -58,9 +58,16 @@ test('MySQL: migrations, authentication, revocation and ownership', { skip: !tar
     await admin.eventos.create({titulo:'Evento teste', descricao:'Fictício', data:'2026-10-03', horario:'10:00', local:'Teste', tipo:'retiro', requireInscricao:1});
     const events = await api.eventos.list();
     const eventId = events[0].id;
+    await admin.pagamentosEventos.create({eventoId:eventId,valor:'40.00',qrCodeUrl:'',chavePix:'teste@example.invalid',nomeRecebedor:'Fictício',ativo:1});
     await api.inscricoesEventos.create({eventoId:eventId,nome:'Pessoa A',telefone:'000000000',celula:'A',userId:b.userId});
     const own = await api.inscricoesEventos.minhas();
     assert.equal(own.length,1);
+    const [payments] = await connection.query<any[]>('SELECT * FROM pagamentos_eventos WHERE inscricaoId = ?', [own[0].id]);
+    assert.equal(payments.length,1);
+    assert.equal(payments[0].status,'pendente');
+    await admin.inscricoes.updateStatus({inscricaoId:own[0].id,statusPagamento:'pago'});
+    const [confirmed] = await connection.query<any[]>('SELECT status FROM pagamentos_eventos WHERE inscricaoId = ?', [own[0].id]);
+    assert.equal(confirmed[0].status,'confirmado');
     assert.equal(own[0].userId,a.userId, 'client cannot assign another owner');
     assert.equal((await admin.inscricoesEventos.minhas()).length,0);
     await assert.rejects(api.inscricoesEventos.list(), (e:any) => e.code === 'FORBIDDEN');
@@ -76,7 +83,7 @@ test('MySQL: migrations, authentication, revocation and ownership', { skip: !tar
     await admin.eventos.delete({id:eventId});
     assert.equal((await api.eventos.list()).length,0);
     const expired = await sdk.createSessionToken(a.openId!);
-    await connection.execute('UPDATE sessions SET expiresAt = ? WHERE tokenHash = ?', [new Date(0),createHash('sha256').update(expired).digest('hex')]);
+    await connection.execute('UPDATE sessions SET expiresAt = ? WHERE tokenHash = ?', [new Date(Date.now() - 60_000),createHash('sha256').update(expired).digest('hex')]);
     await assert.rejects(sdk.authenticateRequest({headers:{authorization:'Bearer '+expired}}));
 
     // Real HTTP server: cookies, session revocation, CORS and web navigation.

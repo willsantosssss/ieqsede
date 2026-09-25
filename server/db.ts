@@ -764,46 +764,23 @@ export async function createInscricaoEvento(data: InsertInscricaoEvento) {
   
   const conn = await pool.getConnection();
   try {
-    // Inserir inscrição usando SQL direto para obter insertId
+    await conn.beginTransaction();
     const [result] = await conn.query(
       'INSERT INTO inscricoesEventos (eventoId, userId, nomeInscrito, emailInscrito, telefoneinscrito, celulaInscrito, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
       [data.eventoId, data.userId || null, data.nome, data.email || null, data.telefone, data.celula]
     );
-    
     const inscricaoId = (result as any).insertId;
-    void 0;
-    
-    // Verificar se o evento tem configuração de pagamento
-    void 0;
-    const [configResult] = await conn.query(
-      'SELECT * FROM configPagamentosEventos WHERE eventoId = ? LIMIT 1',
-      [data.eventoId]
-    );
-    
-    void 0;
-    void 0;
-    void 0;
-    
-    if (configResult && Array.isArray(configResult) && configResult.length > 0) {
-      const configPagamento = configResult[0];
-      void 0;
-      
-      // Criar registro em pagamentos_eventos
-      try {
-        await conn.query(
-          'INSERT INTO pagamentos_eventos (inscricaoId, valor, metodo, status, userId, nome, email, telefone) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-          [inscricaoId, configPagamento.valor, 'pix', 'pendente', data.userId || null, data.nome, data.email || null, data.telefone]
-        );
-        void 0;
-      } catch (error: any) {
-        void 0;
-      }
+    const [configs] = await conn.query('SELECT valor FROM configPagamentosEventos WHERE eventoId = ? AND ativo = 1 LIMIT 1', [data.eventoId]);
+    if (Array.isArray(configs) && configs.length) {
+      await conn.query('INSERT INTO pagamentos_eventos (inscricaoId, valor, metodo, status) VALUES (?, ?, ?, ?)',
+        [inscricaoId, (configs[0] as any).valor, 'pix', 'pendente']);
     }
-    
+    await conn.commit();
     return { ...data, id: inscricaoId };
-  } finally {
-    conn.release();
-  }
+  } catch (error) {
+    await conn.rollback();
+    throw error;
+  } finally { conn.release(); }
 }
 
 export async function deleteInscricaoEvento(id: number) {
