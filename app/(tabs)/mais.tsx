@@ -8,6 +8,7 @@ import * as Haptics from "expo-haptics";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { useThemeContext } from "@/lib/theme-provider";
+import { church } from "@/config/church";
 
 export default function MaisScreen() {
   const colors = useColors();
@@ -56,12 +57,14 @@ export default function MaisScreen() {
     }
     Alert.alert(
       "Sobre o App",
-      "IEQ Sede v1.0\n\nAplicativo desenvolvido para conectar você à comunidade da igreja.\n\n© 2026 IEQ Sede",
+      `${church.shortName} v1.0\n\nAplicativo desenvolvido para conectar você à comunidade da igreja.\n\n© 2026 ${church.shortName}`,
       [{ text: "OK" }]
     );
   };
 
   const { data: contatosIgreja, isLoading: contatosLoading } = trpc.contatosIgreja.get.useQuery();
+  const contactPhone = contatosIgreja?.telefone || church.phone;
+  const contactWhatsapp = contatosIgreja?.whatsapp || church.whatsapp;
   const [showContatoModal, setShowContatoModal] = useState(false);
 
   const handleContato = () => {
@@ -69,7 +72,7 @@ export default function MaisScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     
-    if (!contatosIgreja) {
+    if (!contatosIgreja && !contactPhone && !contactWhatsapp) {
       Alert.alert("Carregando", "Carregando dados de contato...");
       return;
     }
@@ -78,8 +81,8 @@ export default function MaisScreen() {
   };
 
   const handleContatoWhatsApp = () => {
-    if (contatosIgreja?.whatsapp) {
-      Linking.openURL(`https://wa.me/${contatosIgreja.whatsapp.replace(/\D/g, '')}`);
+    if (contactWhatsapp) {
+      Linking.openURL(`https://wa.me/${contactWhatsapp.replace(/\D/g, '')}`);
       setShowContatoModal(false);
     }
   };
@@ -92,8 +95,8 @@ export default function MaisScreen() {
   };
 
   const handleContatoTelefone = () => {
-    if (contatosIgreja?.telefone) {
-      Linking.openURL(`tel:${contatosIgreja.telefone.replace(/\D/g, '')}`);
+    if (contactPhone) {
+      Linking.openURL(`tel:${contactPhone.replace(/\D/g, '')}`);
       setShowContatoModal(false);
     }
   };
@@ -377,7 +380,7 @@ export default function MaisScreen() {
         {/* Rodapé */}
         <View className="items-center py-4">
           <Text className="text-xs text-muted text-center">
-            IEQ Sede © 2026
+            {church.shortName} © 2026
           </Text>
           <Text className="text-xs text-muted text-center mt-1">
             Conectando você à comunidade
@@ -452,7 +455,7 @@ export default function MaisScreen() {
             <Text className="text-base text-muted text-center">Entre em contato conosco</Text>
             
             <View className="gap-3 mt-4">
-              {contatosIgreja?.whatsapp && (
+              {contactWhatsapp && (
                 <TouchableOpacity
                   className="rounded-2xl p-4 flex-row items-center gap-3 bg-green-500/10 border border-green-500"
                   onPress={handleContatoWhatsApp}
@@ -460,13 +463,13 @@ export default function MaisScreen() {
                   <Text className="text-2xl">💬</Text>
                   <View className="flex-1">
                     <Text className="text-lg font-bold text-foreground">WhatsApp</Text>
-                    <Text className="text-sm text-muted">{contatosIgreja.whatsapp}</Text>
+                    <Text className="text-sm text-muted">{contactWhatsapp}</Text>
                   </View>
                   <IconSymbol name="chevron.right" size={20} color={colors.primary} />
                 </TouchableOpacity>
               )}
               
-              {contatosIgreja?.telefone && (
+              {contactPhone && (
                 <TouchableOpacity
                   className="rounded-2xl p-4 flex-row items-center gap-3 bg-blue-500/10 border border-blue-500"
                   onPress={handleContatoTelefone}
@@ -474,7 +477,7 @@ export default function MaisScreen() {
                   <Text className="text-2xl">☎️</Text>
                   <View className="flex-1">
                     <Text className="text-lg font-bold text-foreground">Telefone</Text>
-                    <Text className="text-sm text-muted">{contatosIgreja.telefone}</Text>
+                    <Text className="text-sm text-muted">{contactPhone}</Text>
                   </View>
                   <IconSymbol name="chevron.right" size={20} color={colors.primary} />
                 </TouchableOpacity>

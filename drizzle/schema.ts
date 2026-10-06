@@ -142,6 +142,7 @@ export const eventos = mysqlTable("eventos", {
   horario: varchar("horario", { length: 20 }).notNull(),
   local: varchar("local", { length: 255 }).notNull(),
   tipo: varchar("tipo", { length: 50 }).notNull(),
+  especial: boolean("especial").default(false).notNull(),
   requireInscricao: int("requireInscricao").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
@@ -156,6 +157,7 @@ export const noticias = mysqlTable("noticias", {
   titulo: varchar("titulo", { length: 255 }).notNull(),
   conteudo: text("conteudo"),
   data: varchar("data", { length: 50 }),
+  imagemUrl: varchar("imagemUrl", { length: 500 }),
   destaque: int("destaque").default(0),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
@@ -231,6 +233,7 @@ export const inscricoesEventos = mysqlTable("inscricoesEventos", {
   email: varchar("emailInscrito", { length: 255 }),
   telefone: varchar("telefoneinscrito", { length: 20 }),
   celula: varchar("celulaInscrito", { length: 100 }),
+  status: varchar("status", { length: 50 }).default("confirmado").notNull(),
   dataInscricao: timestamp("dataInscricao").defaultNow(),
   createdAt: timestamp("createdAt").defaultNow(),
   updatedAt: timestamp("updatedAt").defaultNow(),
@@ -314,6 +317,10 @@ export type InsertInscricaoEscolaCrescimento = typeof inscricoesEscolaCresciment
 export const configEscolaCrescimento = mysqlTable("configEscolaCrescimento", {
   id: int("id").primaryKey().autoincrement(),
   dataInicio: varchar("dataInicio", { length: 10 }),
+  descricaoConecte: text("descricaoConecte"),
+  descricaoLidere1: text("descricaoLidere1"),
+  descricaoLidere2: text("descricaoLidere2"),
+  descricaoAvance: text("descricaoAvance"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -381,5 +388,4 @@ export const recados = mysqlTable("recados", {
 
 export type Recado = typeof recados.$inferSelect;
 export type InsertRecado = typeof recados.$inferInsert;
-
 

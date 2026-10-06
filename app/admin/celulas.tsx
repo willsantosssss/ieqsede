@@ -149,7 +149,7 @@ export default function AdminCelulasScreen() {
         <View className="bg-surface rounded-2xl p-6 gap-4 mx-4 max-w-sm border border-border">
           <Text className="text-lg font-bold text-foreground">Remover Célula</Text>
           <Text className="text-sm text-muted">
-            Deseja remover a célula "{deleteTarget?.nome}"? Esta ação não pode ser desfeita.
+            Deseja remover a célula &quot;{deleteTarget?.nome}&quot;? Esta ação não pode ser desfeita.
           </Text>
           <View className="flex-row gap-3 pt-2">
             <TouchableOpacity
@@ -454,4 +454,3 @@ export default function AdminCelulasScreen() {
     </ScreenContainer>
   );
 }
-

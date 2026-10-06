@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
+import { church } from '@/config/church';
 import { useDevocionaiProgressivo } from '@/hooks/use-devocional-progressivo';
 import { sequenciaNovoTestamento } from '@/lib/data/sequencia-nt';
 import { Share } from 'react-native';
@@ -99,7 +100,7 @@ export default function DevocionaiScreen() {
       const texto = capitulo.versos.map((v) => `${v.numero}. ${v.texto}`).join('\n\n');
 
       await Share.share({
-        message: `📖 ${capitulo.livro} ${capitulo.numero} (${capitulo.versao})\n\n${texto}\n\n— IEQ Sede`,
+        message: `📖 ${capitulo.livro} ${capitulo.numero} (${capitulo.versao})\n\n${texto}\n\n— ${church.shortName}`,
         title: `${capitulo.livro} ${capitulo.numero}`,
       });
     } catch (err) {
@@ -116,7 +117,7 @@ export default function DevocionaiScreen() {
 
     try {
       await Share.share({
-        message: `📝 Minhas anotações sobre ${capitulo.livro} ${capitulo.numero}\n\n${anotacao}\n\n— IEQ Sede - Devocional`,
+        message: `📝 Minhas anotações sobre ${capitulo.livro} ${capitulo.numero}\n\n${anotacao}\n\n— ${church.shortName} - Devocional`,
         title: `Anotações - ${capitulo.livro} ${capitulo.numero}`,
       });
     } catch (err) {
@@ -383,4 +384,3 @@ export default function DevocionaiScreen() {
     </ScreenContainer>
   );
 }
-

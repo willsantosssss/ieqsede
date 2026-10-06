@@ -609,50 +609,10 @@ export async function getRelatoriosByLiderIdWithFilters(
 }
 
 export async function createRelatorio(data: Omit<InsertRelatorio, 'id' | 'createdAt' | 'updatedAt'>) {
-  if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL not set");
-  
-  try {
-    const pool = mysql.createPool(databaseUrl(process.env));
-    const connection = await pool.getConnection();
-    
-    // Construir título e descrição a partir dos dados
-    const titulo = `Relatório ${data.tipo || 'Semanal'}`;
-    const descricao = `${data.celula || ''} - Presentes: ${data.presentes || 0}, Novos Visitantes: ${data.novosVisitantes || 0}, Conversões: ${data.conversoes || 0}`;
-    
-    // Converter data de DD/MM/YYYY para YYYY-MM-DD
-    let dataFormatada = null;
-    if (data.periodo) {
-      const [dia, mes, ano] = data.periodo.split('/');
-      dataFormatada = `${ano}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
-    }
-    
-    const query = `INSERT INTO relatorios (titulo, descricao, observacoes, dataRelatorio, liderId, celula, tipo, presentes, novosVisitantes, conversoes) 
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-    
-    const [result] = await connection.execute(query, [
-      titulo,
-      descricao,
-      data.observacoes || null,
-      dataFormatada,
-      data.liderId || 0,
-      data.celula || '',
-      data.tipo || 'semanal',
-      data.presentes || 0,
-      data.novosVisitantes || 0,
-      data.conversoes || 0,
-    ]);
-    
-    const insertResult = result as any;
-    const insertId = insertResult?.insertId || 0;
-    
-    await connection.release();
-    await pool.end();
-    
-    return insertId;
-  } catch (error) {
-    void 0;
-    throw error;
-  }
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(relatorios).values(data);
+  return Number((result as any).insertId || 0);
 }
 
 export async function updateRelatorio(id: number, data: Partial<InsertRelatorio>) {

@@ -1,4 +1,4 @@
-# IEQ Sede
+# Igreja do Evangelho Quadrangular Sede
 
 Base em desenvolvimento de um aplicativo Expo/React Native com API Express/tRPC e MySQL.
 

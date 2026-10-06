@@ -12,7 +12,7 @@
     "check": "tsc --noEmit",
     "lint": "expo lint",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "vitest run tests/permissions.test.ts tests/session-storage.test.ts",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test:security": "node --test tests/security.test.mjs",

@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
+import { church } from '@/config/church';
 import { useHistoricoAnotacoes, AnotacaoHistorico } from '@/hooks/use-historico-anotacoes';
 
 export default function HistoricoAnotacoesScreen() {
@@ -89,7 +90,7 @@ export default function HistoricoAnotacoesScreen() {
   const handleCompartilhar = async (anotacao: AnotacaoHistorico) => {
     try {
       await Share.share({
-        message: `📝 Minhas anotações sobre ${anotacao.livro} ${anotacao.capitulo}\n\n${anotacao.texto}\n\n— IEQ Sede - Devocional`,
+        message: `📝 Minhas anotações sobre ${anotacao.livro} ${anotacao.capitulo}\n\n${anotacao.texto}\n\n— ${church.shortName} - Devocional`,
         title: `Anotações - ${anotacao.livro} ${anotacao.capitulo}`,
       });
     } catch (err) {
@@ -334,4 +335,3 @@ export default function HistoricoAnotacoesScreen() {
     </ScreenContainer>
   );
 }
-

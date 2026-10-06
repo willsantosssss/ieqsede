@@ -1,4 +1,4 @@
-name: Validate isolated IEQ Sede base
+name: Validate isolated IEQ Sede application
 on:
   push:
     branches: [work/base-ieqsede]

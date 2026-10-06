@@ -282,7 +282,7 @@ export default function AdminOracaoScreen() {
           <View className="bg-surface rounded-2xl p-6 w-full max-w-sm">
             <Text className="text-xl font-bold text-foreground mb-2">Remover Pedido</Text>
             <Text className="text-sm text-muted mb-6">
-              Deseja remover o pedido "{pedidoParaRemover?.titulo}"?
+              Deseja remover o pedido &quot;{pedidoParaRemover?.titulo}&quot;?
             </Text>
             <View className="flex-row gap-2">
               <TouchableOpacity
@@ -307,4 +307,3 @@ export default function AdminOracaoScreen() {
     </ScreenContainer>
   );
 }
-
