@@ -22,7 +22,7 @@ npm run db:migrate
 npm run dev
 ```
 
-`npm run db:generate` gera SQL a partir do schema, sem precisar conectar ao banco. `npm run db:migrate` aplica as migrações ao banco configurado: nunca use a conexão do aplicativo original.
+`npm run db:generate` gera SQL a partir do schema, sem precisar conectar ao banco. `npm run db:migrate` aplica as migrações a um banco novo e vazio: nunca use a conexão do aplicativo original. Para o banco Railway que recebeu somente a estrutura copiada, use `npm run db:prepare`; esse comando cria apenas as tabelas e colunas ausentes, é idempotente e não copia nem altera dados.
 
 Personalização da igreja e identificadores do app: `config/church.json`. Os identificadores são provisórios e independentes do aplicativo original. Configure `EXPO_PUBLIC_API_BASE_URL` com o endereço da nova API antes de gerar uma versão para dispositivos.
 
@@ -42,6 +42,6 @@ A exportação Expo gera bundles JavaScript/Hermes. Não produz APK/IPA assinado
 
 No serviço exclusivo `ieqsede`, use `DATABASE_URL=${{MySQL.MYSQL_URL}}`, `NODE_ENV=production`, `HOST=0.0.0.0` e `ALLOW_REMOTE_DATABASE=true`, somente após confirmar que o MySQL é o novo banco isolado.
 
-Após resolver as pendências e validar em homologação, os comandos do servidor são `npm run build` e `npm start`. A migração é `npm run db:migrate` com as dependências de desenvolvimento disponíveis. Configure `CORS_ORIGINS` para as origens web autorizadas e armazenamento persistente para a pasta `uploads` antes de usar anexos. Não coloque credenciais de banco no aplicativo mobile ou no GitHub.
+O comando `npm run build` gera o bundle do servidor e também `dist/app`, necessário para servir a aplicação web. O `npm start` prepara o schema copiado com `npm run db:prepare` antes de iniciar o servidor. Para um banco novo e vazio, use `npm run db:migrate` com as dependências de desenvolvimento disponíveis. Configure `CORS_ORIGINS` para as origens web autorizadas e armazenamento persistente para a pasta `uploads` antes de usar anexos. Não coloque credenciais de banco no aplicativo mobile ou no GitHub.
 
 O primeiro administrador deve ser uma conta criada no novo banco, promovida explicitamente com `npx tsx scripts/promote-admin.ts email-da-conta`. Não há senha administrativa padrão.
