@@ -1,0 +1,100 @@
+// Fallback for using MaterialIcons on Android and web.
+
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { SymbolWeight, SymbolViewProps } from "expo-symbols";
+import { ComponentProps } from "react";
+import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
+
+type IconMapping = Record<string, ComponentProps<typeof MaterialIcons>["name"]>;
+type IconSymbolName = string;
+
+/**
+ * Add your SF Symbols to Material Icons mappings here.
+ * - see Material Icons in the [Icons Directory](https://icons.expo.fyi).
+ * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
+ */
+const MAPPING = {
+  "house.fill": "home",
+  "paperplane.fill": "send",
+  "chevron.left.forwardslash.chevron.right": "code",
+  "chevron.right": "chevron-right",
+  "calendar": "event",
+  "map.fill": "location-on",
+  "book.fill": "menu-book",
+  "hands.sparkles.fill": "volunteer-activism",
+  "newspaper.fill": "article",
+  "ellipsis.circle.fill": "more-horiz",
+  "heart.fill": "favorite",
+  "person.fill": "person",
+  "gear": "settings",
+  "plus.circle.fill": "add-circle",
+  "checkmark.circle.fill": "check-circle",
+  "person.2.fill": "groups",
+  "doc.text.fill": "description",
+  "lock.fill": "lock",
+  "bell.fill": "notifications",
+  "bell.slash.fill": "notifications-off",
+  "arrowtriangledown.fill": "logout",
+  "arrow.right.square": "arrow-forward",
+  "square.and.arrow.up": "share",
+  "trash.fill": "delete",
+  "pencil": "edit",
+  "checkmark": "check",
+  "xmark": "close",
+  "exclamationmark.circle.fill": "error",
+  "info.circle.fill": "info",
+  "eye.fill": "visibility",
+  "eye.slash.fill": "visibility-off",
+  "magnifyingglass": "search",
+  "plus": "add",
+  "minus": "remove",
+  "arrow.left": "arrow-back",
+  "arrow.right": "arrow-forward",
+  "arrow.up": "arrow-upward",
+  "arrow.down": "arrow-downward",
+  "line.3.horizontal": "menu",
+  "xmark.circle.fill": "cancel",
+  "circle.fill": "radio-button-checked",
+  "circle": "radio-button-unchecked",
+  "square.fill": "check-box",
+  "square": "check-box-outline-blank",
+  "star.fill": "star",
+  "star": "star-border",
+  "heart": "favorite-border",
+  "link": "link",
+  "doc": "description",
+  "folder.fill": "folder",
+  "photo.fill": "image",
+  "video.fill": "videocam",
+  "music.note": "music-note",
+  "phone.fill": "phone",
+  "envelope.fill": "mail",
+  "location.fill": "location-on",
+  "clock.fill": "schedule",
+  "calendar.badge.plus": "event",
+  "checkmark.seal.fill": "verified",
+  "exclamationmark.triangle.fill": "warning",
+  "questionmark.circle.fill": "help",
+} as IconMapping;
+
+/**
+ * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
+ * This ensures a consistent look across platforms, and optimal resource usage.
+ * Icon `name`s are based on SF Symbols and require manual mapping to Material Icons.
+ */
+export function IconSymbol({
+  name,
+  size = 24,
+  color,
+  style,
+}: {
+  name: IconSymbolName;
+  size?: number;
+  color: string | OpaqueColorValue;
+  style?: StyleProp<TextStyle>;
+  weight?: SymbolWeight;
+}) {
+  const materialIconName = MAPPING[name] || 'help'; // Fallback para ícone padrão
+  return <MaterialIcons color={color} size={size} name={materialIconName} style={style} />;
+}
+

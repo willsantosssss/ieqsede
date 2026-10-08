@@ -1,0 +1,407 @@
+import { ScreenContainer } from "@/components/screen-container";
+import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useColors } from "@/hooks/use-colors";
+import { BackButton } from "@/components/back-button";
+import { useState, useEffect } from "react";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/hooks/use-auth";
+import { router } from "expo-router";
+import * as Haptics from "expo-haptics";
+import { Platform, Modal, ScrollView, Text, View, TouchableOpacity, TextInput, Alert, ActivityIndicator } from "react-native";
+
+export default function PerfilScreen() {
+  const colors = useColors();
+  const { user } = useAuth();
+  const [nome, setNome] = useState("");
+  const [dataNascimento, setDataNascimento] = useState("");
+  const [celula, setCelula] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [mostrarCelulas, setMostrarCelulas] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
+  // Buscar dados do usuário
+  const { data: userData, isLoading: isLoadingUser, refetch } = trpc.usuarios.getMeuPerfil.useQuery(undefined, {
+    enabled: !!user,
+  });
+
+  // Buscar células do banco
+  const { data: celulas } = trpc.celulas.list.useQuery(undefined, {
+    refetchOnWindowFocus: true,
+    staleTime: 300000, // Atualizar a cada 30 segundos
+  });
+
+  const updateMutation = trpc.usuarios.updateMeuPerfil.useMutation({
+    onSuccess: () => {
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      Alert.alert("Sucesso", "Seu perfil foi atualizado!");
+      refetch();
+    },
+    onError: (error) => {
+      Alert.alert("Erro", "Não foi possível atualizar o perfil. Tente novamente.");
+      void 0;
+    },
+  });
+
+  const deleteAccountMutation = trpc.usuarios.deleteAccount.useMutation({
+    onSuccess: (data) => {
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+      Alert.alert("Conta Deletada", "Sua conta foi deletada com sucesso.");
+      setTimeout(() => {
+        router.replace("/login");
+      }, 500);
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Não foi possível deletar a conta. Tente novamente.";
+      Alert.alert("Erro", errorMessage);
+    },
+  });
+
+  useEffect(() => {
+    // Usar isLoadingUser do tRPC para controlar loading
+    if (!isLoadingUser && userData !== undefined) {
+      setNome(userData?.nome || "");
+      setDataNascimento(userData?.dataNascimento || "");
+      setCelula(userData?.celula || "");
+      setLoading(false);
+    }
+  }, [isLoadingUser, userData]);
+
+  const formatarDataExibicao = (data: string) => {
+    if (!data) return "";
+    if (data.includes("-")) {
+      const [ano, mes, dia] = data.split("-");
+      return `${dia}/${mes}/${ano}`;
+    }
+    return data;
+  };
+
+  const formatarDataBanco = (data: string) => {
+    if (!data) return "";
+    const numeros = data.replace(/\D/g, "");
+    if (numeros.length <= 2) {
+      return numeros;
+    } else if (numeros.length <= 4) {
+      return `${numeros.slice(0, 2)}/${numeros.slice(2)}`;
+    } else {
+      return `${numeros.slice(0, 2)}/${numeros.slice(2, 4)}/${numeros.slice(4, 8)}`;
+    }
+  };
+
+  const converterParaBanco = (data: string) => {
+    const numeros = data.replace(/\D/g, "");
+    if (numeros.length === 8) {
+      return `${numeros.slice(4, 8)}-${numeros.slice(2, 4)}-${numeros.slice(0, 2)}`;
+    }
+    return data;
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Deletar Conta",
+      "Tem certeza que deseja deletar sua conta? Esta acao nao pode ser desfeita e todos os seus dados serao removidos permanentemente.",
+      [
+        {
+          text: "Cancelar",
+          onPress: () => {},
+          style: "cancel",
+        },
+        {
+          text: "Deletar",
+          onPress: () => {
+            if (Platform.OS !== "web") {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            }
+            deleteAccountMutation.mutate();
+          },
+          style: "destructive",
+        },
+      ]
+    );
+  };
+
+  const handleSave = () => {
+    if (!nome.trim()) {
+      Alert.alert("Atenção", "Por favor, preencha seu nome.");
+      return;
+    }
+
+    // Validar e converter data
+    let dataParaBanco = dataNascimento;
+    if (dataNascimento && dataNascimento.includes("/")) {
+      dataParaBanco = converterParaBanco(dataNascimento);
+    }
+
+    if (dataParaBanco && !/^\d{4}-\d{2}-\d{2}$/.test(dataParaBanco)) {
+      Alert.alert("Atenção", "Data de nascimento inválida. Use o formato DD/MM/YYYY.");
+      return;
+    }
+
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    updateMutation.mutate({
+      nome: nome.trim(),
+      dataNascimento: dataParaBanco || "2000-01-01",
+      celula: celula.trim(),
+    });
+  };
+
+  if (!user) {
+    return (
+      <ScreenContainer className="p-6 justify-center items-center">
+        <Text className="text-lg text-muted mb-4">Você precisa fazer login para acessar seu perfil.</Text>
+        <TouchableOpacity
+          onPress={() => router.push("/login")}
+          className="bg-primary px-6 py-3 rounded-full"
+        >
+          <Text className="text-background font-semibold">Fazer Login</Text>
+        </TouchableOpacity>
+      </ScreenContainer>
+    );
+  }
+
+  // Mostrar loading apenas enquanto carregando, não quando userData é null
+  if (isLoadingUser) {
+    return (
+      <ScreenContainer className="p-6 justify-center items-center">
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text className="text-muted mt-4">Carregando perfil...</Text>
+      </ScreenContainer>
+    );
+  }
+
+  // Se userData é null, mostrar formulário vazio para criar perfil
+  if (!userData) {
+    return (
+      <ScreenContainer>
+        <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>
+          <View className="gap-2">
+            <Text className="text-3xl font-bold text-foreground">Criar Perfil</Text>
+            <Text className="text-base text-muted">
+              Preencha suas informações pessoais para continuar
+            </Text>
+          </View>
+          <View className="gap-4">
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-foreground">Nome Completo *</Text>
+              <TextInput
+                value={nome}
+                onChangeText={setNome}
+                placeholder="Seu nome completo"
+                placeholderTextColor={colors.muted}
+                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground"
+              />
+            </View>
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-foreground">Data de Nascimento</Text>
+              <TextInput
+                value={formatarDataExibicao(dataNascimento)}
+                onChangeText={(text) => {
+                  const formatada = formatarDataBanco(text);
+                  setDataNascimento(converterParaBanco(formatada));
+                }}
+                placeholder="DD/MM/YYYY"
+                placeholderTextColor={colors.muted}
+                className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground"
+                keyboardType="numeric"
+                maxLength={10}
+              />
+            </View>
+            <View className="gap-2">
+              <Text className="text-sm font-semibold text-foreground">Célula</Text>
+              <TouchableOpacity
+                onPress={() => setMostrarCelulas(true)}
+                className="bg-surface border border-border rounded-xl px-4 py-3 flex-row justify-between items-center"
+              >
+                <Text className={celula ? "text-foreground" : "text-muted"}>
+                  {celula || "Selecione sua célula"}
+                </Text>
+                <IconSymbol name="chevron.right" size={20} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={updateMutation.isPending}
+            className="bg-primary py-4 rounded-full items-center mt-4"
+            style={{ opacity: updateMutation.isPending ? 0.6 : 1 }}
+          >
+            {updateMutation.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-background font-bold text-base">Criar Perfil</Text>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </ScreenContainer>
+    );
+  }
+
+  return (
+    <ScreenContainer>
+      <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>
+        {/* Header com botão de voltar */}
+        <View className="flex-row items-center justify-between">
+          <View className="flex-1">
+            <Text className="text-3xl font-bold text-foreground">Meu Perfil</Text>
+          </View>
+          <BackButton />
+        </View>
+        <View className="gap-2">
+          <Text className="text-base text-muted">
+            Atualize suas informações pessoais
+          </Text>
+        </View>
+
+        {/* Formulário */}
+        <View className="gap-4">
+          {/* Nome */}
+          <View className="gap-2">
+            <Text className="text-sm font-semibold text-foreground">Nome Completo *</Text>
+            <TextInput
+              value={nome}
+              onChangeText={setNome}
+              placeholder="Seu nome completo"
+              placeholderTextColor={colors.muted}
+              className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground"
+            />
+          </View>
+
+          {/* Data de Nascimento */}
+          <View className="gap-2">
+            <Text className="text-sm font-semibold text-foreground">Data de Nascimento</Text>
+            <TextInput
+              value={editMode ? formatarDataExibicao(dataNascimento) : formatarDataExibicao(dataNascimento)}
+              onChangeText={(text) => {
+                const formatada = formatarDataBanco(text);
+                setDataNascimento(converterParaBanco(formatada));
+              }}
+              placeholder="DD/MM/YYYY (ex: 15/05/1990)"
+              placeholderTextColor={colors.muted}
+              className="bg-surface border border-border rounded-xl px-4 py-3 text-foreground"
+              keyboardType="numeric"
+              maxLength={10}
+            />
+            <Text className="text-xs text-muted">Formato: DD/MM/YYYY (ex: 15/05/1990)</Text>
+          </View>
+
+          {/* Célula */}
+          <View className="gap-2">
+            <Text className="text-sm font-semibold text-foreground">Célula</Text>
+            <TouchableOpacity
+              onPress={() => setMostrarCelulas(true)}
+              className="bg-surface border border-border rounded-xl px-4 py-3 flex-row justify-between items-center"
+            >
+              <Text className={celula ? "text-foreground" : "text-muted"}>
+                {celula || "Selecione sua célula"}
+              </Text>
+              <IconSymbol name="chevron.right" size={20} color={colors.muted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Botão Salvar */}
+          <TouchableOpacity
+            onPress={handleSave}
+            disabled={updateMutation.isPending}
+            className="bg-primary py-4 rounded-full items-center mt-4"
+            style={{ opacity: updateMutation.isPending ? 0.6 : 1 }}
+          >
+            {updateMutation.isPending ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-background font-bold text-base">Salvar Alterações</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Informações da Conta */}
+        <View className="bg-surface rounded-2xl p-4 gap-2 mt-4">
+          <Text className="text-sm font-semibold text-foreground">Informações da Conta</Text>
+          <View className="gap-1">
+            <Text className="text-xs text-muted">Email: {user.email || "Não informado"}</Text>
+            <Text className="text-xs text-muted">ID: {user.id}</Text>
+          </View>
+        </View>
+
+        {/* Botão Deletar Conta */}
+        <TouchableOpacity
+          onPress={handleDeleteAccount}
+          disabled={deleteAccountMutation.isPending}
+          className="bg-error/10 border border-error rounded-full py-4 items-center mt-4"
+          style={{ opacity: deleteAccountMutation.isPending ? 0.6 : 1 }}
+        >
+          {deleteAccountMutation.isPending ? (
+            <ActivityIndicator color={colors.error} />
+          ) : (
+            <Text className="text-error font-bold text-base">Deletar Conta</Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Modal Seletor de Células */}
+      <Modal
+        visible={mostrarCelulas}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMostrarCelulas(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <View
+            style={{
+              flex: 1,
+              marginTop: "auto",
+              backgroundColor: colors.background,
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingTop: 20,
+            }}
+          >
+            <View className="px-6 pb-4 border-b border-border flex-row items-center justify-between">
+              <Text className="text-lg font-bold text-foreground">Selecione sua Célula</Text>
+              <TouchableOpacity onPress={() => setMostrarCelulas(false)}>
+                <IconSymbol name="chevron.right" size={24} color={colors.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView className="flex-1 px-6 py-4">
+              <TouchableOpacity
+                onPress={() => {
+                  setCelula("");
+                  setMostrarCelulas(false);
+                }}
+                className="py-4 border-b border-border"
+              >
+                <Text className="text-base text-muted font-medium">Nenhuma</Text>
+              </TouchableOpacity>
+              {celulas && celulas.length > 0 ? (
+                celulas.map((cel) => (
+                  <TouchableOpacity
+                    key={cel.id}
+                    onPress={() => {
+                      setCelula(cel.nome);
+                      setMostrarCelulas(false);
+                    }}
+                    className="py-4 border-b border-border"
+                  >
+                    <Text className="text-base text-foreground font-medium">{cel.nome}</Text>
+                    <Text className="text-sm text-muted mt-1">Líder: {cel.lider || "N/A"}</Text>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <View className="px-4 py-3">
+                  <Text className="text-muted text-center">Nenhuma célula disponível</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </ScreenContainer>
+  );
+}
+
