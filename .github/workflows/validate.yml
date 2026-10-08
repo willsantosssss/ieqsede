@@ -1,38 +1,110 @@
 name: Validate isolated IEQ Sede application
+
 on:
+
   push:
+  
     branches: [work/base-ieqsede]
+    
   pull_request:
+  
     branches: [main]
+    
 permissions:
+
   contents: read
+  
 jobs:
+
   validate:
+  
     runs-on: ubuntu-latest
+    
     timeout-minutes: 20
+    
     services:
+    
       mysql:
+      
         image: mysql:8.4
+        
         env:
+        
           MYSQL_ROOT_PASSWORD: disposable-ci-only
+          
           MYSQL_DATABASE: ieqsede_test
+          
         ports: ['3306:3306']
+        
         options: >-
+        
           --health-cmd="mysqladmin ping -h 127.0.0.1 -pdisposable-ci-only"
+          
           --health-interval=10s --health-timeout=5s --health-retries=10
+          
     steps:
+    
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
+      
         with:
+        
           node-version: 24
+          
           cache: npm
+          
       - run: npm ci
+      
       - run: npm run check
+      
       - run: npm run test:security
+      
       - run: npm test -- tests/permissions.test.ts tests/session-storage.test.ts
+      
       - run: npm run build
-      - run: npm run export:app
+      
+      - run: test -f dist/index.js && test -f dist/app/index.html
+      
       - name: MySQL integration with disposable data
+      
         run: node --import tsx --test tests/mysql.integration.ts
+        
         env:
+        
           IEQ_TEST_DATABASE_URL: mysql://root:disposable-ci-only@127.0.0.1:3306/ieqsede_test
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
