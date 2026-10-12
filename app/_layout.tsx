@@ -1,7 +1,7 @@
 // @ts-nocheck
 import "@/global.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, usePathname, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -29,6 +29,8 @@ const DEFAULT_WEB_FRAME: Rect = { x: 0, y: 0, width: 0, height: 0 };
 function RootLayoutContent() {
   const initialInsets = initialWindowMetrics?.insets ?? DEFAULT_WEB_INSETS;
   const initialFrame = initialWindowMetrics?.frame ?? DEFAULT_WEB_FRAME;
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [insets, setInsets] = useState<EdgeInsets>(initialInsets);
   const [frame, setFrame] = useState<Rect>(initialFrame);
@@ -72,6 +74,24 @@ function RootLayoutContent() {
     const unsubscribe = subscribeSafeAreaInsets(handleSafeAreaUpdate);
     return () => unsubscribe();
   }, [handleSafeAreaUpdate]);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!isLoggedIn && pathname !== "/login") {
+      router.replace("/login");
+      return;
+    }
+
+    if (isLoggedIn && needsCadastro && pathname !== "/completar-cadastro") {
+      router.replace("/completar-cadastro");
+      return;
+    }
+
+    if (isLoggedIn && !needsCadastro && pathname === "/login") {
+      router.replace("/");
+    }
+  }, [isLoading, isLoggedIn, needsCadastro, pathname, router]);
 
   // Show loading screen while checking login status
   if (isLoading) {
