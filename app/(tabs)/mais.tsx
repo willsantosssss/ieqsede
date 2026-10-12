@@ -114,10 +114,28 @@ export default function MaisScreen() {
 
   const { logout } = useAuth({ autoFetch: false });
 
+  const performLogout = async () => {
+    try {
+      await logout();
+      router.replace("/login" as any);
+    } catch (error) {
+      void 0;
+      router.replace("/login" as any);
+      Alert.alert("Sessão encerrada neste aparelho", "Não foi possível confirmar a revogação no servidor. Confira sua conexão.");
+    }
+  };
+
   const handleLogout = () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
+
+    if (Platform.OS === "web") {
+      const confirmed = typeof window !== "undefined" && window.confirm("Tem certeza que deseja sair?");
+      if (confirmed) void performLogout();
+      return;
+    }
+
     Alert.alert(
       "Sair da Conta",
       "Tem certeza que deseja sair?",
@@ -126,23 +144,11 @@ export default function MaisScreen() {
         {
           text: "Sair",
           style: "destructive",
-          onPress: async () => {
-            try {
-              await logout();
-              
-              // Redirecionar para login
-              router.replace("/login" as any);
-            } catch (error) {
-              void 0;
-              router.replace("/login" as any);
-              Alert.alert("Sessão encerrada neste aparelho", "Não foi possível confirmar a revogação no servidor. Confira sua conexão.");
-            }
-          },
+          onPress: () => void performLogout(),
         },
       ]
     );
   };
-
   return (
     <ScreenContainer>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 20 }}>
